@@ -11,6 +11,7 @@ function App() {
   return (
     <div className="flex">
       <Sidebar />
+    
       <div className="flex-grow">
         <Routes>
           <Route path="/" element={<HomePage />} />
