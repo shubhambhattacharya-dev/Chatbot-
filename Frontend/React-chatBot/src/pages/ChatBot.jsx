@@ -113,8 +113,8 @@ const Message = ({ content, isUser, timestamp }) => (
   </motion.div>
 );
 
-// Enhanced input area with w-full container as requested
-const AiInput = ({ onSend }) => {
+// Enhanced input area with preview & responsive upward movement
+const AiInput = ({ onSend, setPreviewVisible }) => {
   const [value, setValue] = useState("");
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: MIN_HEIGHT,
@@ -123,6 +123,14 @@ const AiInput = ({ onSend }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Notify parent if preview is shown/hidden
+  useEffect(() => {
+    setPreviewVisible?.(!!imagePreview);
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview, setPreviewVisible]);
 
   const handleClose = (e) => {
     e.preventDefault();
@@ -144,14 +152,36 @@ const AiInput = ({ onSend }) => {
     adjustHeight(true);
   };
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
     <div className="w-full py-4">
+      {/* Show image preview ABOVE input */}
+      <AnimatePresence>
+        {imagePreview && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="mb-4 w-[110px] h-[110px]"
+          >
+            <div className="relative w-full h-full">
+              <img
+                className="object-cover rounded-xl w-full h-full border-2 border-[#ff3f17]/30 bg-white"
+                src={imagePreview}
+                alt="Attachment preview"
+              />
+              <button
+                onClick={handleClose}
+                className="bg-white text-[#ff3f17] absolute -top-2 -right-2 shadow-lg rounded-full w-6 h-6 flex items-center justify-center ring-1 ring-[#ff3f17]/40 hover:bg-[#fff] transition-all"
+                tabIndex={-1}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Input UI */}
       <div className="relative w-full rounded-2xl bg-white/20 dark:bg-[#20262e]/30 border border-white/20 backdrop-blur-xl shadow-lg">
         <FloatingParticles />
         <div className="p-2">
@@ -200,30 +230,6 @@ const AiInput = ({ onSend }) => {
               accept="image/*"
             />
             <Paperclip className={cn("w-4 h-4", imagePreview && "text-[#ff3f17]")} />
-            <AnimatePresence>
-              {imagePreview && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="absolute w-[110px] h-[110px] left-0 top-14 shadow-xl"
-                >
-                  <div className="relative w-full h-full">
-                    <img
-                      className="object-cover rounded-xl w-full h-full border-2 border-[#ff3f17]/30 bg-white"
-                      src={imagePreview}
-                      alt="Attachment preview"
-                    />
-                    <button
-                      onClick={handleClose}
-                      className="bg-white text-[#ff3f17] absolute -top-2 -right-2 shadow-lg rounded-full w-6 h-6 flex items-center justify-center ring-1 ring-[#ff3f17]/40 hover:bg-[#fff] transition-all"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </label>
           <div className="ml-auto">
             <motion.button
@@ -258,6 +264,7 @@ export default function GeminiChatApp() {
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -306,22 +313,27 @@ export default function GeminiChatApp() {
             ))}
             {isTyping && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#ff3f17] to-[#ff6a00] flex items-center justify-center">
-                  <BotIcon className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex items-center gap-1 bg-white/90 dark:bg-[#1f2229]/80 backdrop-blur-md rounded-2xl p-4 rounded-bl-none shadow">
-                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "200ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "400ms" }} />
-                </div>
-              </motion.div>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#ff3f17] to-[#ff6a00] flex items-center justify-center">
+                    <BotIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex items-center gap-1 bg-white/90 dark:bg-[#1f2229]/80 backdrop-blur-md rounded-2xl p-4 rounded-bl-none shadow">
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "200ms" }} />
+                    <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "400ms" }} />
+                  </div>
+                </motion.div>
             )}
             <div ref={messagesEndRef} />
           </div>
         </div>
       </main>
-      <div className="relative z-10 pb-8 pt-2 px-4 border-t border-white/15 bg-white/40 dark:bg-[#181920]/70 backdrop-blur-xl">
-        <AiInput onSend={handleSend} />
+      <div
+        className={cn(
+          "relative z-10 pt-2 px-4 border-t border-white/15 bg-white/40 dark:bg-[#181920]/70 backdrop-blur-xl transition-all",
+          previewVisible ? "pb-36" : "pb-8"
+        )}
+      >
+        <AiInput onSend={handleSend} setPreviewVisible={setPreviewVisible} />
       </div>
     </div>
   );
